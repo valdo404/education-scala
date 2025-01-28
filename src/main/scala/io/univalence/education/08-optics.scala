@@ -235,7 +235,7 @@ def optics(): Unit = {
         val statusPrism = monocle.Prism[OrderStatus, OrderStatus](s => if s != Cancelled then Some(s) else None)(identity)
         statusPrism
           .getOption(order.status)
-          .map(_ => BigDecimal(order.items.map(_.price).sum).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble)
+          .map(_ => order.items.map(i => i.price * i.quantity).sum)
       check(safeTotal(order).contains(109.97))
       check(safeTotal(order.copy(status = Cancelled)).isEmpty)
     }
