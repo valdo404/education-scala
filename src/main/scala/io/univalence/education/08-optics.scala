@@ -226,8 +226,8 @@ def optics(): Unit = {
       check(updatedOrder.status == Processing)
       check(updatedOrder.customer.flatMap(_.address).map(_.city).contains("Boston"))
       
-      val originalTotal = order.items.map(_.price).sum
-      val discountedTotal = updatedOrder.items.map(_.price).sum
+      val originalTotal = order.items.map(i => i.price * i.quantity).sum
+      val discountedTotal = updatedOrder.items.map(i => i.price * i.quantity).sum
       check(math.abs(discountedTotal - (originalTotal * 0.9)) < 0.001)
 
       // BONUS: Create a function that safely calculates the total price for orders with status != Cancelled
