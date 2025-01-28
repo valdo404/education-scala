@@ -48,7 +48,12 @@ def _04_cogroup_join(): Unit =
      *   type of the key.
      * @return
      */
-    def cogroup[A, B, ID](left: Map[ID, List[A]], right: Map[ID, List[B]]): Map[ID, (List[A], List[B])] = |>?
+    def cogroup[K, V1, V2](left: Map[K, List[V1]], right: Map[K, List[V2]]): Map[K, (List[V1], List[V2])] = {
+      val allKeys = left.keySet ++ right.keySet
+      allKeys.map { key =>
+        key -> (left.getOrElse(key, List.empty), right.getOrElse(key, List.empty))
+      }.toMap
+    }
 
     exercise("Complete the implementation of cogroup, so the checks below pass") {
       check(
@@ -78,19 +83,21 @@ def _04_cogroup_join(): Unit =
         venues: Map[VenueId, Venue]       <- loadData[Venue, VenueId]("data/foursquare/venues.txt.gz", Venue)
       } yield {
         // TODO group checkins by venue ID
-        val checkinsByVenue: Map[VenueId, List[Checkin]] = |>?
+        val checkinsByVenue: Map[VenueId, List[Checkin]] = checkins.values.groupBy(_.venueId).view.mapValues(_.toList).toMap
 
         // TODO group venues by venue ID (you just have each venue in a list)
-        val venuesById: Map[VenueId, List[Venue]] = |>?
+        val venuesById: Map[VenueId, List[Venue]] = venues.values.groupBy(_.id).view.mapValues(_.toList).toMap
 
         // cogroup checkins and venues with the same venue ID
         val checkinsAndVenues: Map[VenueId, (List[Checkin], List[Venue])] = cogroup(checkinsByVenue, venuesById)
 
         // TODO remove from the result all entry that has no venue
-        val filteredCheckinsAndVenues: Map[VenueId, (List[Checkin], List[Venue])] = |>?
+        val filteredCheckinsAndVenues: Map[VenueId, (List[Checkin], List[Venue])] = checkinsAndVenues.filter(_._2._2.nonEmpty)
 
         // TODO use VenueCheckins structure (see below) to count the checkins by venue
-        val venuesWithCheckinCount: List[VenueCheckins] = |>?
+        val venuesWithCheckinCount: List[VenueCheckins] = filteredCheckinsAndVenues.map { case (venueId, (checkins, venues)) =>
+          VenueCheckins(venues.head, checkins.size)
+        }.toList
 
         // Descending sort according to the checkin count and take the 5 first elements
         val result: List[VenueCheckins] =
@@ -213,3 +220,13 @@ object cogroup_join:
 
       valuesById.toMap
     }
+
+  def getFiveMostPopularVenues(checkins: List[Checkin]): List[VenueId] = {
+    checkins.groupBy(_.venueId)
+            .view
+            .mapValues(_.size)
+            .toList
+            .sortBy(-_._2)
+            .take(5)
+            .map(_._1)
+  }

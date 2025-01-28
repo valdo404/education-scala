@@ -78,8 +78,8 @@ def _04_immutability(): Unit =
     mutable2.add(10)
     mutable2.add(20)
 
-    check(mutable1.int == ??)
-    check(mutable2.int == ??)
+    check(mutable1.int == 40)
+    check(mutable2.int == 40)
 
     /**
      * We add the keyword `case` here. A case class is a class with
@@ -98,8 +98,8 @@ def _04_immutability(): Unit =
         .add(10)
         .add(20)
 
-    check(immutable1.int == ??)
-    check(immutable2.int == ??)
+    check(immutable1.int == 10)
+    check(immutable2.int == 40)
   }
 
   /**
@@ -136,32 +136,22 @@ def _04_immutability(): Unit =
        * accordingly.
        */
       def increaseAge: Person =
-        // Person(
-        //   firstName,
-        //   lastName,
-        //   age + 1,
-        //   height,
-        //   birthdate,
-        //   phone,
-        //   job
-        // )
-        // ...same as...
         copy(age = age + 1)
 
       /** Use copy to apply a new job to the person. */
       def changeJob(newJob: String): Person = copy(job = Some(newJob))
     }
 
-    val fiona = Person("Fiona", "Kerhs", 24, 183, LocalDate.of(1997, 12, 24), "+33632132145", Some("Data Engineer"))
+    val fiona = Person(firstName = "Fiona", lastName = "Kerhs", age = 24, length = 183, birthdate = LocalDate.of(1997, 12, 24), phone = "+33632132145", job = Some("Data Engineer"))
 
     val grownUpFiona = fiona.increaseAge
 
     // FIXME
-    check(grownUpFiona.age == fiona.age)
+    check(grownUpFiona.age == fiona.age + 1)
 
     val promotedFiona = fiona.changeJob("Tech lead")
 
-    check(promotedFiona.job == ??)
+    check(promotedFiona.job == Some("Tech lead"))
   }
 
   /**
@@ -181,6 +171,8 @@ def _04_immutability(): Unit =
 
       @tailrec
       def mutableF(): Unit = {
+        println(mutableCount)
+
         mutableCount = mutableCount + 1
 
         if (Random.nextBoolean())
@@ -190,21 +182,23 @@ def _04_immutability(): Unit =
       }
 
       @tailrec
-      def immutableF(count: Int): Int =
+      def immutableF(count: Int): Int = {
+        println(count)
         if (Random.nextBoolean())
           immutableF(count + 1)
         else
           count + 1
+      }
 
-      Random.setSeed(1)
+      Random.setSeed(3)
       mutableF()
 
-      check(mutableCount == ??)
+      check(mutableCount == 3)
 
-      Random.setSeed(1)
+      Random.setSeed(3)
       val immutableCount = immutableF(0)
 
-      check(immutableCount == ??)
+      check(immutableCount == 3)
     }
 
     /**
@@ -267,7 +261,7 @@ def _04_immutability(): Unit =
           case Nil          => default
         }
 
-      check(list.foldLeft(0)(_ + _) == ??)
-      check(immutableFoldLeft(list)(0)(_ + _) == ??)
+      check(list.foldLeft(0)(_ + _) == 8)
+      check(immutableFoldLeft(list)(0)(_ + _) == 8)
     }
   }

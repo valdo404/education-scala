@@ -1,6 +1,6 @@
 package io.univalence.education
 
-import io.univalence.education.internal.exercise_tools.*
+import io.univalence.education.internal.exercise_tools._
 
 /**
  * =Welcome to Scala 🎉=
@@ -37,9 +37,11 @@ def _01_main(): Unit = println("Hello world")
 @main
 def _01_run2(): Unit =
   // TODO use string interpolation to display Mary
-  val name1 = "John"
-  val name2 = "Mary"
-  println(s"Hello $name1 and [put second interpolation here]")
+  val name1: String = "John"
+  val name2: String = "Mary"
+  val name3: String = "Jane"
+
+  println(s"Hello $name1 and $name2 and $name3")
 
 /** ==MULTILINE STRING== */
 @main
@@ -53,4 +55,7 @@ def _01_run3(): Unit =
  * Brother Michael, auntie Gin
  * Open the door and let 'em in
  */
-  println("""[paste here]""")
+  println("""The sky turned crimson at dawn.
+            |Whispers of the wind danced through the trees.
+            |A distant bell chimed softly in the valley.
+            |Moments passed like shadows in the twilight.""".stripMargin)

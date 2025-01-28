@@ -40,7 +40,10 @@ def _07_generic_types(): Unit = {
    * @tparam A
    *   the type of the value.
    */
-  case class Box[+A](value: A)
+  case class Box[+A](value: A) {
+    def map[B](f: A => B): Box[B] = Box(f(value))
+    def flatMap[B](f: A => Box[B]): Box[B] = f(value)
+  }
 
   section("Living in a box") {
 
@@ -53,7 +56,7 @@ def _07_generic_types(): Unit = {
        *
        * The `map` operation aims to modify the value inside the box.
        */
-      extension [A](box: Box[A]) def map[B](f: A => B): Box[B] = |>?
+      extension [A](box: Box[A]) def map[B](f: A => B): Box[B] = box.map(f)
 
       check(Box(42).map(_ * 2) == Box(84))
       check(Box("42").map(_.toInt) == Box(42))
@@ -65,7 +68,7 @@ def _07_generic_types(): Unit = {
        * The `flatMap` operation is almost similar to `map`, except that
        * it can be used to chain operations using the value inside boxes.
        */
-      extension [A](box: Box[A]) def flatMap[B](f: A => Box[B]): Box[B] = |>?
+      extension [A](box: Box[A]) def flatMap[B](f: A => Box[B]): Box[B] = box.flatMap(f)
 
       check(Box(12).flatMap(a => Box(13).flatMap(b => Box(a + b))) == Box(25))
 
@@ -75,7 +78,7 @@ def _07_generic_types(): Unit = {
        */
 
       // TODO write map again by using flatMap
-      extension [A](box: Box[A]) def map[B](f: A => B): Box[B] = |>?
+      extension [A](box: Box[A]) def map[B](f: A => B): Box[B] = box.flatMap(a => Box(f(a)))
 
       /**
        * The for-comprehension below is equivalent to
@@ -103,40 +106,48 @@ def _07_generic_types(): Unit = {
    *
    * Note: pattern matching might help you in the exercises below.
    */
-  enum MyList[+A]:
-    case NothingMore
-    case Cell(head: A, tail: MyList[A])
+  sealed trait MyList[+A] {
+    def map[B](f: A => B): MyList[B] = this match {
+      case Empty => Empty
+      case Cell(head, tail) => Cell(f(head), tail.map(f))
+    }
 
-  /**
-   * Below are some utility functions to help you with [[MyList]] type.
-   */
-  object MyList:
-    import MyList.*
+    def flatMap[B](f: A => MyList[B]): MyList[B] = this match {
+      case Empty => Empty
+      case Cell(head, tail) => {
+        val headResult = f(head)
+        val tailResult = tail.flatMap(f)
+        headResult.concat(tailResult)
+      }
+    }
 
-    /**
-     * Create an empty list.
-     *
-     * @tparam A
-     *   type of the empty list.
-     */
-    def empty[A]: MyList[A] = NothingMore
+    def filter(p: A => Boolean): MyList[A] = this match {
+      case Empty => Empty
+      case Cell(head, tail) => 
+        if (p(head)) Cell(head, tail.filter(p))
+        else tail.filter(p)
+    }
 
-    /**
-     * Helps you to create a list in a more readable way.
-     *
-     * With this function, we have this equivalence:
-     * {{{
-     *   MyList(1, 2, 3) == Cell(1, Cell(2, Cell(3, NothingMore)))
-     * }}}
-     *
-     * Reminder: all explicit call to a function named `apply` can be
-     * omitted.
-     *
-     * @param values
-     *   this parameter is a vararg, meaning that `values` matches a
-     *   series of parameter. `values` is seen as an `Array[A]`.
-     */
-    def apply[A](values: A*): MyList[A] = values.foldRight(empty[A])((value, l) => Cell(value, l))
+    def foldLeft[B](z: B)(op: (B, A) => B): B = this match {
+      case Empty => z
+      case Cell(head, tail) => tail.foldLeft(op(z, head))(op)
+    }
+
+    def concat[B >: A](that: MyList[B]): MyList[B] = this match {
+      case Empty => that
+      case Cell(head, tail) => Cell(head, tail.concat(that))
+    }
+  }
+
+  case object Empty extends MyList[Nothing]
+  case class Cell[A](head: A, tail: MyList[A]) extends MyList[A]
+
+  object MyList {
+    def apply[A](elements: A*): MyList[A] =
+      elements.foldRight[MyList[A]](Empty)((elem, acc) => Cell(elem, acc))
+
+    def empty[A]: MyList[A] = Empty
+  }
 
   section("My list") {
     import MyList.*
@@ -147,7 +158,7 @@ def _07_generic_types(): Unit = {
        * There, `map` transforms the element of the list one by one. But
        * it should not change the size of the list.
        */
-      extension [A](l: MyList[A]) def map[B](f: A => B): MyList[B] = |>?
+      extension [A](l: MyList[A]) def map[B](f: A => B): MyList[B] = l.map(f)
 
       check(MyList(1, 2, 3).map(_ + 1) == MyList(2, 3, 4))
     }
@@ -162,14 +173,14 @@ def _07_generic_types(): Unit = {
        * Notice that when you combine flatMap operations on lists, they
        * act as a cartesian product between those lists.
        */
-      extension [A](l: MyList[A]) def flatMap[B](f: A => MyList[B]): MyList[B] = |>?
+      extension [A](l: MyList[A]) def flatMap[B](f: A => MyList[B]): MyList[B] = l.flatMap(f)
 
       check(
         MyList(1, 2).flatMap(a => MyList(4, 5).flatMap(b => MyList((a, b)))) == MyList((1, 4), (1, 5), (2, 4), (2, 5))
       )
 
       // TODO write map again by using flatMap
-      extension [A](l: MyList[A]) def map[B](f: A => B): MyList[B] = |>?
+      extension [A](l: MyList[A]) def map[B](f: A => B): MyList[B] = l.flatMap(a => MyList(f(a)))
 
       check(
         (for {
@@ -177,20 +188,20 @@ def _07_generic_types(): Unit = {
           name     <- MyList("Jon", "Mary")
         } yield s"$greeting $name!")
           ==
-            MyList("Good morning Jon", "Good morning Mary", "Good afternoon Jon", "Good afternoon Mary")
+            MyList("Good morning Jon!", "Good morning Mary!", "Good afternoon Jon!", "Good afternoon Mary!")
       )
 
-      check(MyList(1, 2, 3).flatMap(a => MyList.empty[Int].map(b => a + b)) == ??)
+      check(MyList(1, 2, 3).flatMap(a => MyList.empty[Int].map(b => a + b)) == MyList.empty)
     }
 
     exercise("filter") {
-      extension [A](l: MyList[A]) def filter(f: A => Boolean): MyList[A] = |>?
+      extension [A](l: MyList[A]) def filter(f: A => Boolean): MyList[A] = l.filter(f)
 
       check(MyList(1, 2, 3, 4, 5).filter(_ % 2 == 0) == MyList(2, 4))
     }
 
     exercise("fold") {
-      extension [A](l: MyList[A]) def foldLeft[B](init: B)(f: (B, A) => B): B = |>?
+      extension [A](l: MyList[A]) def foldLeft[B](init: B)(f: (B, A) => B): B = l.foldLeft(init)(f)
 
       check(MyList(1, 2, 3).foldLeft(0)(_ + _) == 6)
       check(MyList("a", "b", "c").foldLeft(MyList.empty[String])((l, value) => Cell(value, l)) == MyList("c", "b", "a"))
@@ -214,6 +225,12 @@ def _07_generic_types(): Unit = {
     def print(value: A): String = value.toString
   }
 
+  extension [A](p: Printer[A]) {
+    def contramap[B](f: B => A): Printer[B] = new Printer[B] {
+      override def print(value: B): String = p.print(f(value))
+    }
+  }
+
   section("Contravariant type") {
 
     exercise("contramap") {
@@ -235,8 +252,6 @@ def _07_generic_types(): Unit = {
        *
        * TODO implement contramap
        */
-      extension [A](p: Printer[A]) def contramap[B](f: B => A): Printer[B] = |>?
-
       val stringPrinter: Printer[String] = Printer()
       val intPrinter: Printer[Int]       = stringPrinter.contramap(_.toString)
 
@@ -254,7 +269,7 @@ def _07_generic_types(): Unit = {
         stringPrinter.contramap(person => s"${person.firstName} ${person.lastName}")
 
       // TODO use personNamePrinter and contramap to create a printer that display the name of a user
-      val userNamePrinter: Printer[User] = |>?
+      val userNamePrinter: Printer[User] = personNamePrinter.contramap(user => user.name)
 
       val user = User(id = 1, login = "jon", name = PersonName(firstName = "Jon", lastName = "Doe"))
       check(userNamePrinter.print(user) == "Jon Doe")
