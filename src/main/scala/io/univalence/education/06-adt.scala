@@ -30,15 +30,20 @@ def _06_adt(): Unit =
 
     def eval(expression: Expression, variableValue: Double): Double =
       expression match
-        case Variable          => |>?
-        case Constant(value)   => |>?
-        case Add(left, right)  => |>?
-        case Mult(left, right) => |>?
+        case Variable          => variableValue
+        case Constant(value)   => value
+        case Add(left, right)  => eval(left, variableValue) + eval(right, variableValue)
+        case Mult(left, right) => eval(left, variableValue) * eval(right, variableValue)
 
     exercise("Evaluate an expression") {
-      check(eval(Variable, 3) == 3.0)
-      check(eval(Constant(2.0), 3) == 2.0)
-      check(eval(Add(Constant(1), Mult(Variable, Constant(2))), 3) == 7.0)
+      check(eval(Variable, variableValue = 3) == 3.0)
+      check(eval(Constant(2.0), variableValue = 3) == 2.0)
+      check(eval(Add(
+        left = Constant(1),
+        right = Mult(
+          left = Variable,
+          right = Constant(2))),
+        variableValue = 3) == 7.0)
     }
 
     /**
@@ -49,7 +54,12 @@ def _06_adt(): Unit =
      * This will serve as an heuristic in order to estimate the
      * complexity of an expression.
      */
-    def size(expression: Expression): Int = |>?
+    def size(expression: Expression): Int =
+      expression match
+        case Variable          => 1
+        case Constant(value)   => 1
+        case Add(left, right)  => size(left) + size(right) + 1
+        case Mult(left, right) => size(left) + size(right) + 1
 
     exercise("Size of an expression") {
       check(size(Variable) == 1)
@@ -83,7 +93,20 @@ def _06_adt(): Unit =
        * happens.
        */
 
-      def simplify(expression: Expression): Expression = |>?
+      def simplify(expression: Expression): Expression = expression match
+        case Variable          => Variable
+        case c @ Constant(value)   => c
+        case Add(left: Constant, right: Constant) => Constant(left.value + right.value)
+        case Mult(left: Constant, right: Constant) => Constant(left.value * right.value)
+        case Mult(Constant(0.0), _) => Constant(0)
+        case Add(left, Constant(0.0)) => simplify(left)
+        case Add(Constant(0.0), right) => simplify(right)
+        case Mult(_, Constant(0.0)) => Constant(0)
+        case Mult(left, Constant(1.0)) => simplify(left)
+        case Mult(Constant(1.0), right) => simplify(right)
+        case Add(left, right) => simplify(Add(simplify(left), simplify(right)))
+        case Mult(left, right) => simplify(Add(simplify(left), simplify(right)))
+
 
       /**
        * Find the fixed point of a function.
@@ -122,5 +145,4 @@ def _06_adt(): Unit =
       check(simplify(Mult(Add(One, Mult(Variable, One)), Zero)) == Zero)
       check(simplify(Add(Add(One, One), One)) == Constant(3.0))
     }
-
   }

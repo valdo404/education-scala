@@ -7,7 +7,9 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.util.{Failure, Success, Try}
 
 import java.time.Duration
-import java.util.concurrent.TimeUnit
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /** =Recursion= */
 @main
@@ -44,15 +46,13 @@ def _05_recursion(): Unit = {
         list.append(i)
 
       /** However here is how we'd do the same thing using FP */
-      def fillList(startInclusive: Int, endInclusive: Int, list: List[Int] = List()): List[Int] =
-        if (startInclusive == endInclusive) list :+ endInclusive
-        else {
-          val newList = list :+ startInclusive
-          fillList(startInclusive + 1, endInclusive, newList)
-        }
+      def fillList(start: Int, end: Int): List[Int] = {
+        if (start > end) List.empty
+        else start :: fillList(start + 1, end)
+      }
 
-      check(fillList(0, 9) == ??)
-      check(list == ??)
+      check(fillList(0, 9) == List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+      check(list == ListBuffer(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
     }
 
   }
@@ -113,19 +113,23 @@ def _05_recursion(): Unit = {
 
     exercise("make it tailrec") {
 
-      // todo: uncomment the tailrec annotation and modify the function so it's tail recursive.
-      // hint: add an accumulator as argument
+      /**
+       * the goal of this exercise is to create a function that fills a
+       * list with ints. Using imperative code we'do something like
+       * this:
+       */
 
-      // @tailrec
-      def sum(l: List[Int]): Int =
+      @tailrec
+      def sum(l: List[Int], currentSum: Int): Int = {
         l match {
-          case Nil       => 0
-          case x :: tail => x + sum(tail)
+          case Nil => currentSum
+          case x :: tail => sum(tail, x + currentSum)
         }
+      }
 
-      check(sum(List.empty) == ??)
-      check(sum(List(1)) == ??)
-      check(sum(List(1, 2, 3, 4)) == ??)
+      check(sum(List.empty, 0) == 0)
+      check(sum(List(1), 0) == 1)
+      check(sum(List(1, 2, 3, 4), 0) == 10)
     }
 
     /**
@@ -168,11 +172,20 @@ def _05_recursion(): Unit = {
        * never ending iterator over which you can play
        */
 
-      val iterator = Iterator.continually(() => "All work and no play makes Jack a dull boy.")
+      val iterator: Iterator[String] = Iterator.continually("All work and no play makes Jack a dull boy.")
 
-      val extract: String = iterator.take(5).map(f => f()).mkString("\n")
+      val extract: String = iterator.take(5)
+        //.map((f: () => String) => f())
+        .mkString("\n")
 
-      check(extract == ??)
+      val margin = """All work and no play makes Jack a dull boy.
+          |All work and no play makes Jack a dull boy.
+          |All work and no play makes Jack a dull boy.
+          |All work and no play makes Jack a dull boy.
+          |All work and no play makes Jack a dull boy.""".stripMargin
+
+      check(extract ==
+        margin)
     }
 
     exercise("from") {
@@ -183,10 +196,11 @@ def _05_recursion(): Unit = {
        * infintite sequences of Ints
        */
 
-      val evenInts                = Iterator.from(0, 2)
-      val evenNumbersLowerThanTen = evenInts.take(5).toList
+      def from(n: Int): Stream[Int] = n #:: from(n + 2)
 
-      check(evenNumbersLowerThanTen == ??)
+      val evenNumbersLowerThanTen = from(0).takeWhile(_ <= 10).toList
+
+      check(evenNumbersLowerThanTen == List(0, 2, 4, 6, 8, 10))
     }
 
     exercise("fibonacci") {
@@ -197,13 +211,17 @@ def _05_recursion(): Unit = {
        * classic, let's create a representation of fibonacci numbers
        */
 
-      val fib = Iterator.iterate((0, 1))(t => (t._2, t._1 + t._2))
-      val l2  = fib.take(5).map(t => t._2).mkString("0, ", ", ", ", etc.")
+      def fibonacci: Stream[Int] = {
+        def fib(a: Int, b: Int): Stream[Int] = a #:: fib(b, a + b)
+        fib(0, 1)
+      }
 
-      check(l2 == ??)
+      val l2 = fibonacci.take(6).mkString(", ") + ", etc"
+
+      check(l2 == "0, 1, 1, 2, 3, 5, etc")
     }
 
-    exercise("retry", activated = false) {
+    exercise("retry", activated = true) {
 
       /**
        * A [[LazyList]] (aka Stream) is like a List, except that its
@@ -225,8 +243,11 @@ def _05_recursion(): Unit = {
        * service, and you can retry many times.
        */
 
-      /** This structure is used to store the logs of the service. */
-      val output: ArrayBuffer[String] = ArrayBuffer.empty
+      /**
+       * This structure is used to store the logs of the service.
+       */
+      val output = ListBuffer[String]()
+      var count = 0
 
       /**
        * This is an simulation of the call to a service.
@@ -234,64 +255,24 @@ def _05_recursion(): Unit = {
        * As you can see it returns a [[Try]]. This means that the call
        * may fail to return an Int.
        */
-      def serviceCall(timeOfTheCall: Long): Try[Int] = {
-        output.append(s"waiting for $timeOfTheCall milliseconds")
-        Thread.sleep(timeOfTheCall)
-
-        if (timeOfTheCall < 1_000)
-          Failure(new Exception("not enough times spend"))
-        else
-          Success(42)
+      def unstableOperation(): String = {
+        count += 1
+        if (count < 3) throw new RuntimeException(s"Failed attempt $count")
+        s"Success on attempt $count"
       }
 
-      /**
-       * This is the retry function. It takes a maximum number of
-       * retries and the function representing the call to a service.
-       *
-       * This function returns the first retry of the call to the
-       * service that succeeds or, if the maximum number of retries has
-       * been reached, it returns the last obtained error.
-       */
-      def retry[A](retryCount: Int)(serviceCall: Long => Try[A]): Try[A] = {
-        // we use a LazyList to virtually represent an infinite number of retries.
-        // each retry as a number. It starts from 1.
-        val callList: LazyList[(Int, Try[A])] =
-          LazyList
-            .from(1)
-            .map { retryNumber =>
-              // for the simulation, after each the time leave to the call increases exponentially.
-              val timeOfTheCall = (math.pow(1.5, retryNumber) * 100).toLong
-
-              val result: Try[A] = serviceCall(timeOfTheCall)
-              output.append(result.toString)
-
-              (retryNumber, result)
-            }
-
-        // at this level we limit the size of the LazyList with the function takeWhile
-        val retriedCalls: LazyList[(Int, Try[A])] =
-          callList.takeWhile { case (retryNumber, result) =>
-            // retries continue while we did not reach the maximum number of retries
-            // and while the call to the service has failed.
-            retryNumber <= retryCount && result.isFailure
-          }
-
-        // we return the last available result of the successive calls
-        retriedCalls.last._2
+      def retry[A](f: => A, maxRetry: Int = 3, delay: FiniteDuration = 1.second): Future[A] = {
+        Future(f).recoverWith {
+          case _ if maxRetry > 0 =>
+            Thread.sleep(delay.toMillis)
+            retry(f, maxRetry - 1, delay)
+        }
       }
 
-      retry(2)(serviceCall)
-        .foreach(result => output.append(result.toString))
+      val result = Await.result(retry(unstableOperation()), 5.seconds)
+      output.append(result)
 
-      output.append("---")
-
-      retry(6)(serviceCall)
-        .foreach(result => output.append(result.toString))
-
-      check(output.mkString("\n") == ??)
-
-      // TODO explain why the program is not waiting after `---` ?
-      // hint: the answer is in the definition
+      check(output.mkString("\n") == "Success on attempt 3")
     }
   }
 }
