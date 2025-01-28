@@ -72,7 +72,7 @@ def optics(): Unit = {
       case PayPal(email: String)
       case Cash
 
-    import PaymentMethod._
+    import PaymentMethod.*
 
     exercise("Working with Prisms") {
       val payment1 = CreditCard("1234-5678", "12/25")
@@ -167,9 +167,10 @@ def optics(): Unit = {
 
       // Create a traversal that only affects employees in the Engineering department
       val engineeringSalaries = Focus[Company](_.departments)
-        .filter(_.name == "Engineering")
+        .each
         .andThen(Focus[Department](_.employees))
         .each
+        .filter(d => d.name == "Engineering")
         .andThen(Focus[Employee](_.salary))
       val engineeringRaise = engineeringSalaries.modify(_ * 1.2)(company)
       check(engineeringRaise.departments.find(_.name == "Engineering").get.employees.forall(_.salary > 100000))
@@ -190,7 +191,7 @@ def optics(): Unit = {
       case Pending, Processing, Shipped, Delivered, Cancelled
 
     exercise("Complex Order Management") {
-      import OrderStatus._
+      import OrderStatus.*
       
       val order = Order(
         "ord-123",
@@ -231,10 +232,10 @@ def optics(): Unit = {
 
       // BONUS: Create a function that safely calculates the total price for orders with status != Cancelled
       def safeTotal(order: Order): Option[Double] = 
-        monocle.Prism[OrderStatus, Unit](s => if s != Cancelled then Some(()) else None)(_ => ())(order.status)
-          .andThen(orderItems)
-          .getAllFold
-          .map(_.sum)
+        val statusPrism = monocle.Prism[OrderStatus, OrderStatus](s => if s != Cancelled then Some(s) else None)(identity)
+        statusPrism
+          .getOption(order.status)
+          .map(_ => order.items.map(_.price).sum)
       check(safeTotal(order).contains(109.97))
       check(safeTotal(order.copy(status = Cancelled)).isEmpty)
     }
