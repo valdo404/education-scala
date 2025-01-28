@@ -231,11 +231,7 @@ def optics(): Unit = {
       check(math.abs(discountedTotal - (originalTotal * 0.9)) < 0.001)
 
       // BONUS: Create a function that safely calculates the total price for orders with status != Cancelled
-      def safeTotal(order: Order): Option[Double] = 
-        val statusPrism = monocle.Prism[OrderStatus, OrderStatus](s => if s != Cancelled then Some(s) else None)(identity)
-        statusPrism
-          .getOption(order.status)
-          .map(_ => order.items.map(i => i.price * i.quantity).sum)
+      def safeTotal(order: Order): Option[Double] = ???
       check(safeTotal(order).contains(109.97))
       check(safeTotal(order.copy(status = Cancelled)).isEmpty)
     }
