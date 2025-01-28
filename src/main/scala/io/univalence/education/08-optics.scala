@@ -167,8 +167,8 @@ def optics(): Unit = {
 
       // Create a traversal that only affects employees in the Engineering department
       val engineeringSalaries = Focus[Company](_.departments)
-        .filter(_.name == "Engineering")
         .each
+        .filter(d => d.name == "Engineering")
         .andThen(Focus[Department](_.employees))
         .each
         .andThen(Focus[Employee](_.salary))
