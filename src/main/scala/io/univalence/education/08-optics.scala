@@ -167,10 +167,10 @@ def optics(): Unit = {
 
       // Create a traversal that only affects employees in the Engineering department
       val engineeringSalaries = Focus[Company](_.departments)
+        .filter(_.name == "Engineering")
         .each
         .andThen(Focus[Department](_.employees))
         .each
-        .filter(d => d.name == "Engineering")
         .andThen(Focus[Employee](_.salary))
       val engineeringRaise = engineeringSalaries.modify(_ * 1.2)(company)
       check(engineeringRaise.departments.find(_.name == "Engineering").get.employees.forall(_.salary > 100000))
@@ -235,7 +235,7 @@ def optics(): Unit = {
         val statusPrism = monocle.Prism[OrderStatus, OrderStatus](s => if s != Cancelled then Some(s) else None)(identity)
         statusPrism
           .getOption(order.status)
-          .map(_ => order.items.map(_.price).sum)
+          .map(_ => BigDecimal(order.items.map(_.price).sum).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble)
       check(safeTotal(order).contains(109.97))
       check(safeTotal(order.copy(status = Cancelled)).isEmpty)
     }
