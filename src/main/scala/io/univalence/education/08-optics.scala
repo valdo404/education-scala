@@ -45,21 +45,21 @@ def optics(): Unit = {
       val personStreetLens = addressLens.andThen(streetLens)
 
       // Test your lenses
-      check(ageLens.get(john) == 30)
-      check(nameLens.get(john) == "John")
-      check(personStreetLens.get(john) == "123 Main St")
+      check(ageLens.get(john) == ??)
+      check(nameLens.get(john) == ??)
+      check(personStreetLens.get(john) == ??)
 
       // Use ageLens to increment John's age by 1
       val olderJohn = ageLens.modify(_ + 1)(john)
-      check(olderJohn.age == 31)
+      check(olderJohn.age == ??)
 
       // Use the focus syntax to move John to a new address
       val movedJohn = john
         .focus(_.address.street).replace("456 Park Ave")
         .focus(_.address.city).replace("Boston")
 
-      check(movedJohn.address.street == "456 Park Ave")
-      check(movedJohn.address.city == "Boston")
+      check(movedJohn.address.street == ??)
+      check(movedJohn.address.city == ??)
     }
   }
 
@@ -91,13 +91,13 @@ def optics(): Unit = {
       }(PayPal.apply)
 
       // Test your prisms
-      check(creditCardPrism.getOption(payment1).isDefined)
-      check(creditCardPrism.getOption(payment2).isEmpty)
-      check(paypalPrism.getOption(payment2).contains("john@example.com"))
+      check(creditCardPrism.getOption(payment1).isDefined == ??)
+      check(creditCardPrism.getOption(payment2).isEmpty == ??)
+      check(paypalPrism.getOption(payment2).contains("john@example.com") == ??)
 
       // Create a new credit card by reversing the card number
       val reversedCard = creditCardPrism.modify { case (num, exp) => (num.reverse, exp) }(payment1)
-      check(creditCardPrism.getOption(reversedCard).exists(_._1 == "8765-4321"))
+      check(creditCardPrism.getOption(reversedCard).exists(_._1 == "8765-4321") == ??)
     }
   }
 
@@ -118,13 +118,13 @@ def optics(): Unit = {
       val updatedUser1 = emailOptional.modify(_.toUpperCase)(user1)
       val updatedUser2 = emailOptional.modify(_.toUpperCase)(user2)
 
-      check(updatedUser1.email.contains("JOHN@EXAMPLE.COM"))
-      check(updatedUser2.email.isEmpty)
+      check(updatedUser1.email.contains("JOHN@EXAMPLE.COM") == ??)
+      check(updatedUser2.email.isEmpty == ??)
 
       // Create a function that safely gets the domain part of the email (after @)
       val domainOptional = emailOptional.andThen(monocle.Optional[String, String](s => Some(s.split('@')(1)))(domain => email => email.split('@')(0) + "@" + domain))
-      check(domainOptional.getOption(user1).contains("example.com"))
-      check(domainOptional.getOption(user2).isEmpty)
+      check(domainOptional.getOption(user1).contains("example.com") == ??)
+      check(domainOptional.getOption(user2).isEmpty == ??)
     }
   }
 
@@ -162,8 +162,8 @@ def optics(): Unit = {
       val originalSum = company.departments.flatMap(_.employees).map(_.salary).sum
       val updatedSum = updatedCompany.departments.flatMap(_.employees).map(_.salary).sum
       
-      check(updatedSum > originalSum)
-      check(math.abs(updatedSum - (originalSum * 1.1)) < 0.001)
+      check(updatedSum > originalSum == ??)
+      check(math.abs(updatedSum - (originalSum * 1.1)) < 0.001 == ??)
 
       // Create a traversal that only affects employees in the Engineering department
       val engineeringSalaries = Focus[Company](_.departments)
@@ -173,8 +173,8 @@ def optics(): Unit = {
         .each
         .andThen(Focus[Employee](_.salary))
       val engineeringRaise = engineeringSalaries.modify(_ * 1.2)(company)
-      check(engineeringRaise.departments.find(_.name == "Engineering").get.employees.forall(_.salary > 100000))
-      check(engineeringRaise.departments.find(_.name == "Sales").get.employees.forall(_.salary < 100000))
+      check(engineeringRaise.departments.find(_.name == "Engineering").get.employees.forall(_.salary > 100000) == ??)
+      check(engineeringRaise.departments.find(_.name == "Sales").get.employees.forall(_.salary < 100000) == ??)
     }
   }
 
@@ -223,17 +223,17 @@ def optics(): Unit = {
         .pipe(orderItems.modify(_ * 0.9))
 
       // Verify changes
-      check(updatedOrder.status == Processing)
-      check(updatedOrder.customer.flatMap(_.address).map(_.city).contains("Boston"))
+      check(updatedOrder.status == Processing == ??)
+      check(updatedOrder.customer.flatMap(_.address).map(_.city).contains("Boston") == ??)
       
       val originalTotal = order.items.map(i => i.price * i.quantity).sum
       val discountedTotal = updatedOrder.items.map(i => i.price * i.quantity).sum
-      check(math.abs(discountedTotal - (originalTotal * 0.9)) < 0.001)
+      check(math.abs(discountedTotal - (originalTotal * 0.9)) < 0.001 == ??)
 
       // BONUS: Create a function that safely calculates the total price for orders with status != Cancelled
       def safeTotal(order: Order): Option[Double] = ???
-      check(safeTotal(order).contains(109.97))
-      check(safeTotal(order.copy(status = Cancelled)).isEmpty)
+      check(safeTotal(order).contains(109.97) == ??)
+      check(safeTotal(order.copy(status = Cancelled)).isEmpty == ??)
     }
   }
 }
